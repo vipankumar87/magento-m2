@@ -1,0 +1,75 @@
+version: '2'
+services:
+    magento:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+            args:
+                HOST_IP: "${HOST_IP}"
+        env_file:
+            - ./.env
+        ports:
+            - "${DOCKER_APP_PORT}:80"
+            - "${DOCKER_APPS_PORT}:443"
+        environment:
+            - PHP_IDE_CONFIG="idekey=PHPSTORM"
+            - REDIS_SAVE_PATH=tcp://redis:6379
+        volumes:
+            - ./:/var/www/html:delegated
+            - ./docker/apache-php/conf/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+        working_dir: /var/www/html
+    redis:
+        image: redis:5.0.3
+        ports:
+            - "${REDIS_PORT}:6379"
+    memcached:
+        image: memcached:1.5.12
+    db:
+        image: mysql:5.6
+        environment:
+            MYSQL_ROOT_PASSWORD: r00t
+            MYSQL_DATABASE: db
+            MYSQL_USER: magento
+            MYSQL_PASSWORD: appr00t
+        volumes:
+            - ./:/tmp/tmp
+            - ./mysql-data/:/var/lib/mysql
+        ports:
+            - "${DOCKER_DB_PORT}:3306"
+        working_dir: /var/lib/mysql
+#    db:
+#        image: postgres:14-alpine3.15
+#        environment:
+#            POSTGRES_DB: magento2
+#            POSTGRES_USER: postgres
+#            POSTGRES_PASSWORD: postgres
+#        ports:
+#            - '54382:5432'
+#        volumes:
+#            - ./:/tmp/tmp
+#            - ./posgres-data:/var/lib/postgresql/data
+    elasticsearch:
+        image: elasticsearch:6.7.2
+        environment:
+            - cluster.name=docker-cluster
+            - bootstrap.memory_lock=true
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - esdata1:/usr/share/elasticsearch/data
+        ports:
+            - "${ES_PORT}:9200"
+    kibana:
+        image: kibana:6.7.2
+        ports:
+            - "${KIBANA_PORT}:5601"
+        depends_on:
+            - elasticsearch
+volumes:
+    egov_data:
+        driver: "local"
+    esdata1:
+        driver: "local"
